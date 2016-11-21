@@ -26,6 +26,7 @@
 #define kStrMoveApplicationButtonDoNotMove _I10NS(@"Do Not Move")
 #define kStrMoveApplicationQuestionInfoWillRequirePasswd _I10NS(@"Note that this will require an administrator password.")
 #define kStrMoveApplicationQuestionInfoInDownloadsFolder _I10NS(@"This will keep your Downloads folder uncluttered.")
+#define kStrMoveApplicationApplicationAlreadyRunning _I10NS(@"Another instance of the application is running, please quit it and open this Application again.")
 
 // Needs to be defined for compiling under 10.5 SDK
 #ifndef NSAppKitVersionNumber10_5
@@ -45,6 +46,7 @@ static NSString *AlertSuppressKey = @"moveToApplicationsFolderAlertSuppress";
 static NSString *PreferredInstallLocation(BOOL *isUserDirectory);
 static BOOL IsInApplicationsFolder(NSString *path);
 static BOOL IsInDownloadsFolder(NSString *path);
+static BOOL IsApplicationRunning();
 static BOOL IsApplicationAtPathRunning(NSString *path);
 static BOOL IsApplicationAtPathNested(NSString *path);
 static NSString *ContainingDiskImageDevice(NSString *path);
@@ -129,6 +131,13 @@ void PFMoveToApplicationsFolderIfNecessary(void) {
 	// Activate app -- work-around for focus issues related to "scary file from internet" OS dialog.
 	if (![NSApp isActive]) {
 		[NSApp activateIgnoringOtherApps:YES];
+	}
+
+	if (IsApplicationRunning()) {
+		alert = [[[NSAlert alloc] init] autorelease];
+		[alert setMessageText:kStrMoveApplicationApplicationAlreadyRunning];
+		[alert runModal];
+		exit(0);
 	}
 
 	if ([alert runModal] == NSAlertFirstButtonReturn) {
@@ -263,6 +272,16 @@ static BOOL IsInDownloadsFolder(NSString *path) {
 	}
 
 	return NO;
+}
+
+static BOOL IsApplicationRunning() {
+	NSInteger runningApplicationCount = 0;
+	for (NSRunningApplication *runningApplication in [[NSWorkspace sharedWorkspace] runningApplications]) {
+		if ([[runningApplication bundleIdentifier] isEqualToString:(NSString * _Nonnull )[[NSBundle mainBundle] bundleIdentifier]]) {
+			++runningApplicationCount;
+		}
+	}
+	return runningApplicationCount > 1;
 }
 
 static BOOL IsApplicationAtPathRunning(NSString *bundlePath) {
